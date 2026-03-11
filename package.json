@@ -8,12 +8,12 @@
     "sdk/privacy"
   ],
   "scripts": {
-    "build": "yarn workspaces foreach -A run build",
+    "build": "yarn workspaces run build",
     "test": "anchor test",
     "test:local": "anchor test --skip-local-validator",
     "test:modules": "./scripts/test-modules.sh",
-    "test:sdk": "yarn workspaces foreach -A run test",
-    "clean": "yarn workspaces foreach -A run clean",
+    "test:sdk": "yarn workspaces run test",
+    "clean": "yarn workspaces run clean",
     "test-svs1:basic": "npx ts-node scripts/svs-1/basic.ts",
     "test-svs1:slippage": "npx ts-node scripts/svs-1/slippage.ts",
     "test-svs1:multi-user": "npx ts-node scripts/svs-1/multi-user.ts",
