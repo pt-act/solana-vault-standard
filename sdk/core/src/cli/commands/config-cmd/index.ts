@@ -13,6 +13,7 @@ import {
 import {
   addVaultAlias,
   removeVaultAlias,
+  updateVaultAlias,
   listVaultAliases,
 } from "../../config/vault-aliases";
 import { SvsVariant, VaultAlias } from "../../types";
@@ -160,6 +161,80 @@ export function registerConfigCommands(program: Command): void {
         config = removeVaultAlias(config, alias);
         saveConfig(config);
         output.success(`Vault "${alias}" removed`);
+      } catch (error) {
+        output.error(error instanceof Error ? error.message : String(error));
+        process.exit(1);
+      }
+    });
+
+  configCmd
+    .command("update-vault")
+    .description("Update an existing vault alias")
+    .argument("<alias>", "Alias to update")
+    .option("--address <address>", "New vault address")
+    .option(
+      "--variant <variant>",
+      "SVS variant: svs-1, svs-2, svs-3, svs-4, svs-7",
+    )
+    .option("--program-id <pubkey>", "Custom program ID")
+    .option("--asset-mint <pubkey>", "Asset mint address")
+    .option("--vault-id <number>", "Vault ID")
+    .option("--name <name>", "Human-readable name")
+    .action(async (alias, opts) => {
+      const globalOpts = getGlobalOptions(program);
+      const ctx = await createContext(globalOpts, opts, false, false);
+      const { output } = ctx;
+
+      const validVariants: SvsVariant[] = [
+        "svs-1",
+        "svs-2",
+        "svs-3",
+        "svs-4",
+        "svs-7",
+      ];
+
+      if (opts.variant && !validVariants.includes(opts.variant as SvsVariant)) {
+        output.error(
+          `Invalid variant: ${opts.variant}. Use: ${validVariants.join(", ")}`,
+        );
+        process.exit(1);
+      }
+
+      try {
+        let config = loadConfig();
+        const existing = config.vaults[alias];
+        if (!existing) {
+          output.error(`Vault alias "${alias}" not found`);
+          process.exit(1);
+        }
+
+        const updates: Partial<VaultAlias> = {
+          ...(opts.address && { address: opts.address }),
+          ...(opts.variant && { variant: opts.variant as SvsVariant }),
+          ...(opts.programId && { programId: opts.programId }),
+          ...(opts.assetMint && { assetMint: opts.assetMint }),
+          ...(opts.vaultId && { vaultId: parseInt(opts.vaultId) }),
+          ...(opts.name && { name: opts.name }),
+        };
+
+        if (Object.keys(updates).length === 0) {
+          output.error("No updates provided");
+          process.exit(1);
+        }
+
+        const finalVariant = (updates.variant || existing.variant) as SvsVariant;
+        const finalProgramId = updates.programId || existing.programId;
+
+        if (finalVariant === "svs-7" && !finalProgramId) {
+          output.error(
+            "SVS-7 requires an explicit --program-id (no default program ID is configured yet)",
+          );
+          process.exit(1);
+        }
+
+        config = updateVaultAlias(config, alias, updates);
+        saveConfig(config);
+        output.success(`Vault "${alias}" updated`);
       } catch (error) {
         output.error(error instanceof Error ? error.message : String(error));
         process.exit(1);

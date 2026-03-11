@@ -26,13 +26,33 @@ export const WSOL_MINT = new PublicKey(
   "So11111111111111111111111111111111111111112",
 );
 
+export type SolVaultBalanceModel = "live" | "stored" | "unknown";
+
+function parseBalanceModel(value: unknown): SolVaultBalanceModel {
+  if (!value) return "unknown";
+
+  // Anchor enum usually comes back as { live: {} } or { stored: {} }
+  if (typeof value === "object") {
+    const keys = Object.keys(value as Record<string, unknown>);
+    if (keys.includes("live")) return "live";
+    if (keys.includes("stored")) return "stored";
+  }
+
+  if (typeof value === "string") {
+    const v = value.toLowerCase();
+    if (v === "live" || v === "stored") return v;
+  }
+
+  return "unknown";
+}
+
 export interface SolVaultState {
   authority: PublicKey;
   sharesMint: PublicKey;
   wsolVault: PublicKey;
   totalAssets: BN;
   decimalsOffset: number;
-  balanceModel: unknown;
+  balanceModel: SolVaultBalanceModel;
   bump: number;
   paused: boolean;
   vaultId: BN;
@@ -72,7 +92,10 @@ export class SolanaSolVault {
     this.wsolVault = wsolVault;
   }
 
-  static async load(program: Program, vault: PublicKey): Promise<SolanaSolVault> {
+  static async load(
+    program: Program,
+    vault: PublicKey,
+  ): Promise<SolanaSolVault> {
     const provider = program.provider as AnchorProvider;
 
     const accountNs = program.account as Record<
@@ -107,7 +130,7 @@ export class SolanaSolVault {
       wsolVault: raw.wsolVault as PublicKey,
       totalAssets: new BN(raw.totalAssets.toString()),
       decimalsOffset: raw.decimalsOffset as number,
-      balanceModel: raw.balanceModel,
+      balanceModel: parseBalanceModel(raw.balanceModel),
       bump: raw.bump as number,
       paused: raw.paused as boolean,
       vaultId: new BN(raw.vaultId.toString()),
@@ -144,6 +167,12 @@ export class SolanaSolVault {
   }
 
   async totalAssets(): Promise<BN> {
+    const state = await this.getState();
+
+    if (state.balanceModel === "stored") {
+      return state.totalAssets;
+    }
+
     const account = await getAccount(
       this.provider.connection,
       this.wsolVault,
@@ -276,6 +305,18 @@ export class SolanaSolVault {
         userSharesAccount,
         tokenProgram: TOKEN_PROGRAM_ID,
         token2022Program: TOKEN_2022_PROGRAM_ID,
+      })
+      .rpc();
+  }
+
+  async sync(authority: PublicKey): Promise<string> {
+    return (this.program.methods as any)
+      .sync()
+      .accountsStrict({
+        authority,
+        vault: this.vault,
+        wsolVault: this.wsolVault,
+        tokenProgram: TOKEN_PROGRAM_ID,
       })
       .rpc();
   }

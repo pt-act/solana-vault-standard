@@ -33,8 +33,31 @@ export function getCluster(
   return "devnet";
 }
 
-/** Base path for IDL files (relative to compiled output) */
-const IDL_BASE_PATH = path.resolve(__dirname, "..", "..", "target", "idl");
+/**
+ * Base path for IDL files.
+ *
+ * In this repo, Anchor writes IDLs to <repoRoot>/target/idl.
+ * When running the CLI from a workspace subdirectory (e.g. sdk/core), we need
+ * to walk upwards to find the repo root.
+ */
+function resolveIdlBasePath(): string {
+  let dir = process.cwd();
+  while (true) {
+    const candidate = path.join(dir, "target", "idl");
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+
+  // Fallback: relative to this file's location for uncommon setups.
+  return path.resolve(__dirname, "..", "..", "..", "..", "target", "idl");
+}
+
+const IDL_BASE_PATH = resolveIdlBasePath();
 
 /**
  * Find IDL file path for a given SVS variant.
@@ -191,7 +214,7 @@ export function resolveVaultArg(
 
   // Vault alias from config
   try {
-    const resolved = resolveVaultAlias(vaultArg, config);
+    const resolved = resolveVaultAlias(vaultArg, config, config.defaults.cluster);
 
     if (resolved.variant !== "svs-7" && !resolved.assetMint) {
       output.error(

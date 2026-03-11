@@ -7,7 +7,7 @@ import { TOKEN_2022_PROGRAM_ID, getAccount } from "@solana/spl-token";
 import { createContext } from "../../middleware";
 import { getGlobalOptions } from "../../index";
 import { resolveVault } from "../../config/vault-aliases";
-import { getCluster } from "../../utils";
+import { findIdlPath, loadIdl, getCluster } from "../../utils";
 
 export function registerConfidentialCommands(program: Command): void {
   const ct = program
@@ -81,19 +81,13 @@ export function registerConfidentialCommands(program: Command): void {
         const { getAssociatedTokenAddressSync } =
           await import("@solana/spl-token");
 
-        // Load IDL for the confidential vault program
-        const idlPath =
-          resolved.variant === "svs-3"
-            ? "../../target/idl/svs_3.json"
-            : "../../target/idl/svs_4.json";
-
-        let idl;
-        try {
-          idl = require(idlPath);
-        } catch {
+        const idlPath = findIdlPath(resolved.variant);
+        if (!idlPath) {
           spinner.fail("IDL not found. Run `anchor build` first.");
           process.exit(1);
         }
+
+        const idl = loadIdl(idlPath);
 
         const vault = new ConfidentialSolanaVault(
           provider.connection,
@@ -219,19 +213,13 @@ export function registerConfidentialCommands(program: Command): void {
           computeNewDecryptableBalance,
         } = privacySdk;
 
-        // Load IDL
-        const idlPath =
-          resolved.variant === "svs-3"
-            ? "../../target/idl/svs_3.json"
-            : "../../target/idl/svs_4.json";
-
-        let idl;
-        try {
-          idl = require(idlPath);
-        } catch {
+        const idlPath = findIdlPath(resolved.variant);
+        if (!idlPath) {
           spinner.fail("IDL not found. Run `anchor build` first.");
           process.exit(1);
         }
+
+        const idl = loadIdl(idlPath);
 
         const vault = new ConfidentialSolanaVault(
           provider.connection,
@@ -342,19 +330,13 @@ export function registerConfidentialCommands(program: Command): void {
         const { getAssociatedTokenAddressSync } =
           await import("@solana/spl-token");
 
-        // Load IDL
-        const idlPath =
-          resolved.variant === "svs-3"
-            ? "../../target/idl/svs_3.json"
-            : "../../target/idl/svs_4.json";
-
-        let idl;
-        try {
-          idl = require(idlPath);
-        } catch {
+        const idlPath = findIdlPath(resolved.variant);
+        if (!idlPath) {
           output.error("IDL not found. Run `anchor build` first.");
           process.exit(1);
         }
+
+        const idl = loadIdl(idlPath);
 
         const vault = new ConfidentialSolanaVault(
           provider.connection,

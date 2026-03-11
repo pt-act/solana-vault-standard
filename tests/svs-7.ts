@@ -11,11 +11,11 @@ import {
 } from "@solana/spl-token";
 import { Keypair, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
 import { expect } from "chai";
+import { Svs7 } from "../target/types/svs_7";
 
 // NOTE:
 // - This suite is patterned after tests/svs-1.ts and tests/svs-2.ts.
-// - It is guarded so it does not fail CI until SVS-7 is wired into the Anchor workspace.
-//   To enable, add svs_7 to Anchor.toml and ensure the program builds + generates an IDL.
+// - It expects SVS-7 to be present in Anchor.toml under [programs.*] as svs_7.
 
 describe("svs-7 (Native SOL Vault)", function () {
   const provider = anchor.AnchorProvider.env();
@@ -24,7 +24,7 @@ describe("svs-7 (Native SOL Vault)", function () {
   const connection = provider.connection;
   const payer = (provider.wallet as anchor.Wallet).payer;
 
-  let program: Program<any>;
+  let program: Program<Svs7>;
 
   const WSOL_MINT = new PublicKey("So11111111111111111111111111111111111111112");
   const LAMPORTS_PER_SOL = 1_000_000_000;
@@ -137,13 +137,7 @@ describe("svs-7 (Native SOL Vault)", function () {
   }
 
   before(function () {
-    const p = (anchor.workspace as any).Svs7;
-    if (!p) {
-      console.log("⚠️  SVS-7 program not found in anchor.workspace. Add svs_7 to Anchor.toml to enable these tests.");
-      this.skip();
-    }
-
-    program = p as Program;
+    program = anchor.workspace.Svs7 as Program<Svs7>;
   });
 
   describe("Live balance model (reads wSOL vault amount)", () => {
@@ -299,9 +293,37 @@ describe("svs-7 (Native SOL Vault)", function () {
       expect(vaultAccount.totalAssets.toString()).to.equal(depositLamports.toString());
     });
 
-    it("sync is expected to exist for Stored model", async () => {
-      // Once SVS-7 sync is implemented + added to IDL, this should be updated to call it.
-      expect((program.methods as any).sync).to.not.be.undefined;
+    it("sync updates stored total_assets to match the wSOL vault", async () => {
+      const extraLamports = 123_456_789;
+
+      const wsolBefore = await getTokenAccountAmount(wsolVault);
+
+      const topUpTx = new anchor.web3.Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: payer.publicKey,
+          toPubkey: wsolVault,
+          lamports: extraLamports,
+        }),
+        createSyncNativeInstruction(wsolVault)
+      );
+
+      await provider.sendAndConfirm(topUpTx);
+
+      const wsolAfter = await getTokenAccountAmount(wsolVault);
+      expect(wsolAfter - wsolBefore).to.equal(BigInt(extraLamports));
+
+      await (program.methods as any)
+        .sync()
+        .accountsStrict({
+          authority: payer.publicKey,
+          vault,
+          wsolVault,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        })
+        .rpc();
+
+      const vaultAccount = await (program.account as any).solVault.fetch(vault);
+      expect(vaultAccount.totalAssets.toString()).to.equal(wsolAfter.toString());
     });
   });
 
