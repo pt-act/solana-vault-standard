@@ -91,6 +91,13 @@ function resolveFromAlias(
   alias: string,
   cluster: Cluster,
 ): ResolvedVault {
+  if (vaultConfig.variant === "svs-7" && !vaultConfig.programId) {
+    throw new Error(
+      "SVS-7 vaults require an explicit programId in config. Add/update with:\n" +
+        `  solana-vault config add-vault ${alias} <VAULT_ADDRESS> --variant svs-7 --program-id <PROGRAM_ID>`,
+    );
+  }
+
   const programAddresses = SVS_PROGRAMS[vaultConfig.variant];
   const programAddress =
     vaultConfig.programId ||

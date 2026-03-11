@@ -94,7 +94,7 @@ export function registerConfigCommands(program: Command): void {
     .argument("<address>", "Vault address")
     .requiredOption(
       "--variant <variant>",
-      "SVS variant: svs-1, svs-2, svs-3, svs-4",
+      "SVS variant: svs-1, svs-2, svs-3, svs-4, svs-7",
     )
     .option("--program-id <pubkey>", "Custom program ID")
     .option("--asset-mint <pubkey>", "Asset mint address")
@@ -105,10 +105,23 @@ export function registerConfigCommands(program: Command): void {
       const ctx = await createContext(globalOpts, opts, false, false);
       const { output } = ctx;
 
-      const validVariants: SvsVariant[] = ["svs-1", "svs-2", "svs-3", "svs-4"];
+      const validVariants: SvsVariant[] = [
+        "svs-1",
+        "svs-2",
+        "svs-3",
+        "svs-4",
+        "svs-7",
+      ];
       if (!validVariants.includes(opts.variant as SvsVariant)) {
         output.error(
           `Invalid variant: ${opts.variant}. Use: ${validVariants.join(", ")}`,
+        );
+        process.exit(1);
+      }
+
+      if (opts.variant === "svs-7" && !opts.programId) {
+        output.error(
+          "SVS-7 requires an explicit --program-id (no default program ID is configured yet)",
         );
         process.exit(1);
       }

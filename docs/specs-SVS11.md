@@ -513,6 +513,6 @@ Group 5 — Compliance:
 
 - [SVS-10](./specs-SVS10.md) — Base async vault pattern
 - [SVS-12](./specs-SVS12.md) — Tranched vault (often combined with SVS-11)
-- [specs-modules.md](./specs-modules.md) — Module system for fees, caps, locks
+- [MODULES.md](./MODULES.md) — Module system for fees, caps, locks
 - [ARCHITECTURE.md](./ARCHITECTURE.md) — Cross-variant design patterns
 - [SECURITY.md](./SECURITY.md) — Security considerations

@@ -500,5 +500,5 @@ pub fn harvest(ctx: Context<Harvest>) -> Result<()> {
 
 - [SVS-1](./SVS-1.md) — Base synchronous vault (compatible child)
 - [SVS-2](./SVS-2.md) — Stored balance vault (compatible child)
-- [specs-modules.md](./specs-modules.md) — Module integration
+- [MODULES.md](./MODULES.md) — Module integration
 - [ARCHITECTURE.md](./ARCHITECTURE.md) — Cross-variant design

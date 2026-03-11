@@ -99,10 +99,10 @@ pub fn handler(ctx: Context<MintSol>, shares: u64, max_assets_in: u64) -> Result
         let vault_key = vault.key();
         let user_key = ctx.accounts.user.key();
 
-        module_hooks::check_deposit_access(remaining, &crate::ID, &vault_key, &user_key, &[])?;
+        module_hooks::check_deposit_access(remaining, ctx.program_id, &vault_key, &user_key, &[])?;
         module_hooks::check_deposit_caps(
             remaining,
-            &crate::ID,
+            ctx.program_id,
             &vault_key,
             &user_key,
             total_assets,
@@ -110,7 +110,7 @@ pub fn handler(ctx: Context<MintSol>, shares: u64, max_assets_in: u64) -> Result
         )?;
 
         // NOTE: For `mint_sol`, fee is applied in shares, not assets.
-        let result = module_hooks::apply_entry_fee(remaining, &crate::ID, &vault_key, shares)?;
+        let result = module_hooks::apply_entry_fee(remaining, ctx.program_id, &vault_key, shares)?;
         result.net_shares
     };
 

@@ -14,8 +14,8 @@ pub mod state;
 
 use instructions::*;
 
-// NOTE: placeholder program id. Replace with the deployed svs_7 program id.
-declare_id!("11111111111111111111111111111111");
+// NOTE: localnet program id. Replace with the deployed svs_7 program id when available.
+declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 #[program]
 pub mod svs_7 {

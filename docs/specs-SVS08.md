@@ -533,5 +533,5 @@ pub struct AddAsset<'info> {
 ## See Also
 
 - [SVS-1](./SVS-1.md) — Base single-asset vault
-- [specs-modules.md](./specs-modules.md#36-svs-oracle) — Oracle module interface
+- [MODULES.md](./MODULES.md#svs-oracle) — Oracle module interface
 - [ARCHITECTURE.md](./ARCHITECTURE.md) — Cross-variant design

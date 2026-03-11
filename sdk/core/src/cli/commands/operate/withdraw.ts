@@ -2,9 +2,11 @@
 
 import { Command } from "commander";
 import { Program, BN } from "@coral-xyz/anchor";
+import { PublicKey } from "@solana/web3.js";
 import { createContext } from "../../middleware";
 import { getGlobalOptions } from "../../index";
 import { SolanaVault } from "../../../vault";
+import { SolanaSolVault } from "../../../sol-vault";
 import { findIdlPath, loadIdl, resolveVaultArg } from "../../utils";
 
 export function registerWithdrawCommand(program: Command): void {
@@ -18,8 +20,18 @@ export function registerWithdrawCommand(program: Command): void {
       "--max-shares <number>",
       "Maximum shares to burn (overrides slippage)",
     )
+    .option("--sol", "SVS-7 only: receive native SOL (lamports) (default)")
+    .option("--wsol", "SVS-7 only: receive wSOL into your ATA")
+    .option(
+      "--receiver <pubkey>",
+      "SVS-7 only (--sol): receiver of withdrawn SOL (defaults to your wallet)",
+    )
     .option("--program-id <pubkey>", "Program ID (if vault not in config)")
-    .option("--asset-mint <pubkey>", "Asset mint (if vault not in config)")
+    .option(
+      "--asset-mint <pubkey>",
+      "Asset mint (if vault not in config; ignored for svs-7)",
+    )
+    .option("--variant <variant>", "SVS variant (if vault not in config)")
     .option("--vault-id <number>", "Vault ID", "1")
     .action(async (vaultArg, opts) => {
       const globalOpts = getGlobalOptions(program);
@@ -29,9 +41,24 @@ export function registerWithdrawCommand(program: Command): void {
       const resolved = resolveVaultArg(vaultArg, config, opts, output);
       if (!resolved) process.exit(1);
 
-      const idlPath = findIdlPath();
+      if (opts.sol && opts.wsol) {
+        output.error("Choose only one of --sol or --wsol");
+        process.exit(1);
+      }
+
+      if (
+        resolved.variant !== "svs-7" &&
+        (opts.sol || opts.wsol || opts.receiver)
+      ) {
+        output.error("--sol/--wsol/--receiver flags are only valid for svs-7 vaults");
+        process.exit(1);
+      }
+
+      const idlPath = findIdlPath(resolved.variant);
       if (!idlPath) {
-        output.error("IDL not found. Run `anchor build` first.");
+        output.error(
+          `IDL not found for ${resolved.variant}. Run \`anchor build\` first.`,
+        );
         process.exit(1);
       }
 
@@ -40,12 +67,12 @@ export function registerWithdrawCommand(program: Command): void {
 
       try {
         const idl = loadIdl(idlPath);
-        const prog = new Program(idl as any, provider);
-        const vault = await SolanaVault.load(
-          prog,
-          resolved.assetMint,
-          resolved.vaultId,
-        );
+        const prog = new Program(idl as any, resolved.programId, provider);
+
+        const vault =
+          resolved.variant === "svs-7"
+            ? await SolanaSolVault.load(prog, resolved.address)
+            : await SolanaVault.load(prog, resolved.assetMint, resolved.vaultId);
 
         const previewSharesBurned = await vault.previewWithdraw(amount);
         const maxShares = opts.maxShares
@@ -54,9 +81,7 @@ export function registerWithdrawCommand(program: Command): void {
 
         output.info(`Vault: ${vaultArg}`);
         output.info(`Withdrawing: ${amount.toString()} assets`);
-        output.info(
-          `Expected shares burned: ${previewSharesBurned.toString()}`,
-        );
+        output.info(`Expected shares burned: ${previewSharesBurned.toString()}`);
         output.info(
           `Maximum shares (${slippageBps}bps slippage): ${maxShares.toString()}`,
         );
@@ -88,12 +113,35 @@ export function registerWithdrawCommand(program: Command): void {
         const spinner = output.spinner("Sending transaction...");
         spinner.start();
 
-        const signature = await vault.withdraw(wallet.publicKey, {
-          assets: amount,
-          maxSharesIn: maxShares,
-        });
+        if (resolved.variant === "svs-7" && opts.receiver && opts.wsol) {
+          spinner.fail("Invalid flags");
+          output.error("--receiver is only valid with --sol (not --wsol)");
+          process.exit(1);
+        }
 
-        spinner.succeed(`Transaction confirmed`);
+        const receiver = opts.receiver ? new PublicKey(opts.receiver) : wallet.publicKey;
+
+        const signature =
+          resolved.variant === "svs-7"
+            ? opts.wsol
+              ? await (vault as SolanaSolVault).withdrawWsol(wallet.publicKey, {
+                  assets: amount,
+                  maxSharesIn: maxShares,
+                })
+              : await (vault as SolanaSolVault).withdrawSol(
+                  wallet.publicKey,
+                  receiver,
+                  {
+                    assets: amount,
+                    maxSharesIn: maxShares,
+                  },
+                )
+            : await (vault as SolanaVault).withdraw(wallet.publicKey, {
+                assets: amount,
+                maxSharesIn: maxShares,
+              });
+
+        spinner.succeed("Transaction confirmed");
         output.success(`Withdrew ${amount.toString()} assets`);
         output.info(`Signature: ${signature}`);
 

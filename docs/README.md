@@ -60,12 +60,12 @@ Optional on-chain modules for additional functionality:
 
 | Module | Purpose | Spec |
 |--------|---------|------|
-| svs-fees | Entry/exit/management/performance fees | [specs-modules.md](specs-modules.md#31-svs-fees) |
-| svs-caps | Global and per-user deposit caps | [specs-modules.md](specs-modules.md#32-svs-caps) |
-| svs-locks | Time-locked shares | [specs-modules.md](specs-modules.md#33-svs-locks) |
-| svs-rewards | Secondary reward token distribution | [specs-modules.md](specs-modules.md#34-svs-rewards) |
-| svs-access | Whitelist/blacklist/freeze | [specs-modules.md](specs-modules.md#35-svs-access) |
-| svs-oracle | Shared oracle price interface | [specs-modules.md](specs-modules.md#36-svs-oracle) |
+| svs-fees | Entry/exit/management/performance fees | [MODULES.md](MODULES.md#svs-fees) |
+| svs-caps | Global and per-user deposit caps | [MODULES.md](MODULES.md#svs-caps) |
+| svs-locks | Time-locked shares | [MODULES.md](MODULES.md#svs-locks) |
+| svs-rewards | Secondary reward token distribution | [MODULES.md](MODULES.md#svs-rewards) |
+| svs-access | Whitelist/blacklist/freeze | [MODULES.md](MODULES.md#svs-access) |
+| svs-oracle | Shared oracle price interface | [MODULES.md](MODULES.md#svs-oracle) |
 
 ---
 

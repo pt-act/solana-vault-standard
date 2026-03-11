@@ -5,6 +5,7 @@ import { Program, BN } from "@coral-xyz/anchor";
 import { createContext } from "../../middleware";
 import { getGlobalOptions } from "../../index";
 import { SolanaVault } from "../../../vault";
+import { SolanaSolVault } from "../../../sol-vault";
 import { findIdlPath, loadIdl, resolveVaultArg } from "../../utils";
 
 export function registerDepositCommand(program: Command): void {
@@ -18,8 +19,17 @@ export function registerDepositCommand(program: Command): void {
       "--min-shares <number>",
       "Minimum shares to receive (overrides slippage)",
     )
+    .option(
+      "--sol",
+      "SVS-7 only: deposit native SOL (lamports) (default)",
+    )
+    .option("--wsol", "SVS-7 only: deposit existing wSOL from your ATA")
     .option("--program-id <pubkey>", "Program ID (if vault not in config)")
-    .option("--asset-mint <pubkey>", "Asset mint (if vault not in config)")
+    .option(
+      "--asset-mint <pubkey>",
+      "Asset mint (if vault not in config; ignored for svs-7)",
+    )
+    .option("--variant <variant>", "SVS variant (if vault not in config)")
     .option("--vault-id <number>", "Vault ID", "1")
     .action(async (vaultArg, opts) => {
       const globalOpts = getGlobalOptions(program);
@@ -29,9 +39,21 @@ export function registerDepositCommand(program: Command): void {
       const resolved = resolveVaultArg(vaultArg, config, opts, output);
       if (!resolved) process.exit(1);
 
-      const idlPath = findIdlPath();
+      if (opts.sol && opts.wsol) {
+        output.error("Choose only one of --sol or --wsol");
+        process.exit(1);
+      }
+
+      if (resolved.variant !== "svs-7" && (opts.sol || opts.wsol)) {
+        output.error("--sol/--wsol flags are only valid for svs-7 vaults");
+        process.exit(1);
+      }
+
+      const idlPath = findIdlPath(resolved.variant);
       if (!idlPath) {
-        output.error("IDL not found. Run `anchor build` first.");
+        output.error(
+          `IDL not found for ${resolved.variant}. Run \`anchor build\` first.`,
+        );
         process.exit(1);
       }
 
@@ -40,12 +62,12 @@ export function registerDepositCommand(program: Command): void {
 
       try {
         const idl = loadIdl(idlPath);
-        const prog = new Program(idl as any, provider);
-        const vault = await SolanaVault.load(
-          prog,
-          resolved.assetMint,
-          resolved.vaultId,
-        );
+        const prog = new Program(idl as any, resolved.programId, provider);
+
+        const vault =
+          resolved.variant === "svs-7"
+            ? await SolanaSolVault.load(prog, resolved.address)
+            : await SolanaVault.load(prog, resolved.assetMint, resolved.vaultId);
 
         const previewShares = await vault.previewDeposit(amount);
         const minShares = opts.minShares
@@ -86,10 +108,21 @@ export function registerDepositCommand(program: Command): void {
         const spinner = output.spinner("Sending transaction...");
         spinner.start();
 
-        const signature = await vault.deposit(wallet.publicKey, {
-          assets: amount,
-          minSharesOut: minShares,
-        });
+        const signature =
+          resolved.variant === "svs-7"
+            ? opts.wsol
+              ? await (vault as SolanaSolVault).depositWsol(wallet.publicKey, {
+                  assets: amount,
+                  minSharesOut: minShares,
+                })
+              : await (vault as SolanaSolVault).depositSol(wallet.publicKey, {
+                  assets: amount,
+                  minSharesOut: minShares,
+                })
+            : await (vault as SolanaVault).deposit(wallet.publicKey, {
+                assets: amount,
+                minSharesOut: minShares,
+              });
 
         spinner.succeed(`Transaction confirmed`);
         output.success(`Deposited ${amount.toString()} assets`);

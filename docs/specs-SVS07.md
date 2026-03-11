@@ -23,7 +23,7 @@ This vault type targets liquid staking, SOL yield strategies, and any product wh
 | User interaction | Transfer SPL tokens | Transfer native SOL via system_program |
 | Internal accounting | SPL token account balance | wSOL token account balance |
 | Wrap/unwrap | User's responsibility | Vault handles internally |
-| Asset mint | Configurable | Always `So11111111111111111111111111111111` (native mint) |
+| Asset mint | Configurable | Always `So11111111111111111111111111111111111111112` (canonical wrapped SOL / native mint) |
 
 ---
 
@@ -33,22 +33,32 @@ This vault type targets liquid staking, SOL yield strategies, and any product wh
 #[account]
 pub struct SolVault {
     pub authority: Pubkey,
-    pub shares_mint: Pubkey,         // Token-2022 share token
-    pub wsol_vault: Pubkey,          // PDA-owned wSOL token account
-    pub total_assets: u64,           // tracked in lamports
-    pub decimals_offset: u8,         // 0 (SOL has 9 decimals, 9-9=0, offset=1)
+    pub shares_mint: Pubkey, // Token-2022 share token
+
+    /// PDA-owned wSOL token account (SPL Token program).
+    pub wsol_vault: Pubkey,
+
+    /// Cached assets in lamports. Used only when `balance_model == Stored`.
+    pub total_assets: u64,
+
+    /// Decimal offset exponent used by share conversion math.
+    /// For SOL (9 decimals), this is 0 and the offset is 10^0 = 1.
+    pub decimals_offset: u8,
+
+    pub balance_model: BalanceModel,
     pub bump: u8,
     pub paused: bool,
     pub vault_id: u64,
-    pub balance_model: BalanceModel, // Live or Stored (like SVS-1 vs SVS-2)
     pub _reserved: [u8; 64],
 }
 // seeds: ["sol_vault", vault_id.to_le_bytes()]
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
 pub enum BalanceModel {
-    Live,    // reads wsol_vault.amount directly
-    Stored,  // uses vault.total_assets, requires sync()
+    /// Reads `wsol_vault.amount` each instruction.
+    Live,
+    /// Caches `total_assets` in the vault account, updated via `sync()` and operations.
+    Stored,
 }
 ```
 
@@ -75,10 +85,11 @@ pub enum BalanceModel {
 ```
 deposit_sol(lamports: u64, min_shares_out: u64):
   ✓ lamports > 0
+  ✓ lamports >= MIN_DEPOSIT_AMOUNT
   ✓ vault not paused
-  → system_program::transfer(user → vault PDA, lamports)
-  → Create temporary wSOL account OR sync_native on vault's wSOL account
-  → Compute shares = convert_to_shares(lamports, total_shares, total_assets, offset)
+  → system_program::transfer(user → vault_wsol_ata, lamports)
+  → spl_token::sync_native(vault_wsol_ata)
+  → Compute shares = convert_to_shares(lamports, total_shares, total_assets, decimals_offset)
   → require!(shares >= min_shares_out)
   → Mint shares to user
   → Update total_assets (if Stored model)
@@ -91,12 +102,12 @@ deposit_sol(lamports: u64, min_shares_out: u64):
 withdraw_sol(lamports: u64, max_shares_in: u64):
   ✓ lamports > 0
   ✓ vault not paused
-  → Compute shares = convert_to_shares_for_withdraw(lamports) // ceiling
+  → Compute shares = convert_to_shares(lamports, total_shares, total_assets, decimals_offset) // ceiling
   → require!(shares <= max_shares_in)
   → Burn shares from user
-  → Close wSOL to vault PDA (unwraps to native SOL)
-    OR transfer wSOL then close_account to unwrap
-  → system_program::transfer(vault PDA → user, lamports)
+  → Transfer wSOL from vault_wsol_ata → temp_wsol_account
+  → Close temp_wsol_account to user (unwraps to native SOL)
+  → system_program::transfer(user → receiver, lamports)
   → Update total_assets (if Stored model)
   → emit Withdraw { vault, caller, receiver, owner, assets: lamports, shares }
 ```
@@ -105,16 +116,16 @@ withdraw_sol(lamports: u64, max_shares_in: u64):
 
 ## 5. SOL Wrapping Mechanics
 
-Solana's native mint (`So11111111111111111111111111111111`) requires special handling:
+Solana's canonical wrapped SOL / native mint (`So11111111111111111111111111111111111111112`) requires special handling:
 
 **Depositing SOL:**
-1. User transfers native lamports to vault PDA via `system_program::transfer`
-2. Vault calls `sync_native` on its wSOL token account to update the token balance to match lamport balance
+1. User transfers native lamports to the vault's wSOL token account (an SPL Token ATA owned by the vault PDA) via `system_program::transfer`
+2. Vault calls `sync_native` on that wSOL token account to update `amount` to match the underlying lamports
 3. Internal accounting uses the wSOL token account balance
 
 **Withdrawing SOL:**
-1. Vault transfers wSOL from vault account to a temporary wSOL account owned by vault PDA
-2. Vault calls `close_account` on the temporary account, which unwraps wSOL to native lamports sent to the user
+1. Vault transfers wSOL from the vault wSOL ATA to a temporary wSOL token account (owned by the vault PDA)
+2. Vault calls `close_account` on the temporary account, which unwraps wSOL to native lamports sent to the user (then forwarded to the receiver if needed)
 
 **Alternative approach:** The vault PDA holds native SOL directly (no wSOL account). `total_assets` = vault PDA lamport balance minus rent. This is simpler but makes CPI to external DeFi protocols harder since most expect SPL token accounts. The wSOL approach is preferred for composability.
 
@@ -122,16 +133,12 @@ Solana's native mint (`So11111111111111111111111111111111`) requires special han
 
 ## 6. Rent Handling
 
-The vault PDA must maintain rent-exempt minimum balance. This must be excluded from `total_assets`:
+In the wSOL-account approach (recommended and used by the current reference implementation), the vault PDA itself does not hold user assets. Assets live in the vault's wSOL token account (an SPL Token account), which must be rent-exempt.
 
-```rust
-pub fn total_assets_excluding_rent(vault_lamports: u64) -> u64 {
-    let rent_exempt = Rent::get()?.minimum_balance(SolVault::LEN);
-    vault_lamports.saturating_sub(rent_exempt)
-}
-```
+- SPL Token account size is 165 bytes (`spl_token::state::Account::LEN`).
+- Rent-exempt lamports should be computed from the cluster's `Rent` sysvar.
 
-If using the wSOL approach, rent is on the wSOL token account and is handled by the SPL Token program. The vault PDA itself doesn't hold assets.
+If implementing an alternative design where the vault PDA holds SOL directly, rent-exempt lamports on the vault PDA must be excluded from `total_assets`.
 
 ---
 
@@ -154,7 +161,7 @@ SVS-7 exposes both `_sol` and `_wsol` variants for each operation. This allows:
 
 **Implementation:** Build with `--features modules`. Module config PDAs passed via `remaining_accounts`.
 
-All modules from `specs-modules.md` are compatible:
+All modules from [MODULES.md](./MODULES.md) are compatible:
 
 - **svs-fees:** Fees computed on lamport amounts. Fee assets sent as native SOL to fee_recipient.
 - **svs-caps:** Caps denominated in lamports.
@@ -182,7 +189,7 @@ pub fn sync_native_cpi<'info>(
     token_program: &AccountInfo<'info>,
     native_account: &AccountInfo<'info>,
 ) -> Result<()> {
-    let ix = spl_token_2022::instruction::sync_native(
+    let ix = spl_token::instruction::sync_native(
         token_program.key,
         native_account.key,
     )?;
@@ -197,7 +204,24 @@ pub fn deposit_sol(ctx: Context<DepositSol>, lamports: u64, min_shares_out: u64)
     require!(!vault.paused, VaultError::VaultPaused);
     require!(lamports > 0, VaultError::ZeroAmount);
 
-    // 1. Transfer native SOL from user to vault's wSOL account
+    // 1. Sync native first so conversions see any prior lamport donations.
+    sync_native_cpi(
+        &ctx.accounts.token_program.to_account_info(),
+        &ctx.accounts.wsol_vault.to_account_info(),
+    )?;
+    ctx.accounts.wsol_vault.reload()?;
+
+    // 2. Compute shares using the pre-transfer total_assets.
+    let total_assets_before = match vault.balance_model {
+        BalanceModel::Live => ctx.accounts.wsol_vault.amount,
+        BalanceModel::Stored => vault.total_assets,
+    };
+    let total_shares = ctx.accounts.shares_mint.supply;
+    let offset = 10u64.pow(vault.decimals_offset as u32);
+
+    let shares = convert_to_shares(lamports, total_shares, total_assets_before, offset)?;
+
+    // 3. Transfer native SOL from user to the vault's wSOL account.
     system_program::transfer(
         CpiContext::new(
             ctx.accounts.system_program.to_account_info(),
@@ -209,25 +233,12 @@ pub fn deposit_sol(ctx: Context<DepositSol>, lamports: u64, min_shares_out: u64)
         lamports,
     )?;
 
-    // 2. Sync native balance - CRITICAL
-    // This updates wsol_vault.amount to reflect the new lamport balance
+    // 4. Sync native so `wsol_vault.amount` reflects the new lamport balance.
     sync_native_cpi(
         &ctx.accounts.token_program.to_account_info(),
         &ctx.accounts.wsol_vault.to_account_info(),
     )?;
-
-    // 3. Reload account data after CPI
     ctx.accounts.wsol_vault.reload()?;
-
-    // 4. Compute shares using updated balance
-    let total_assets = match vault.balance_model {
-        BalanceModel::Live => ctx.accounts.wsol_vault.amount,
-        BalanceModel::Stored => vault.total_assets,
-    };
-    let total_shares = ctx.accounts.shares_mint.supply;
-    let offset = 10u64.pow(vault.decimals_offset as u32);
-
-    let shares = convert_to_shares(lamports, total_shares, total_assets, offset)?;
     require!(shares >= min_shares_out, VaultError::SlippageExceeded);
 
     // 5. Mint shares
@@ -291,22 +302,16 @@ User wSOL → spl_token::transfer_checked → vault_wsol_ata → mint_shares
 ### deposit_sol(5_000_000_000, 4_500_000_000)
 *Depositing 5 SOL with 10% slippage tolerance*
 
-1. **system_program::transfer**: 5 SOL from user to vault_wsol_ata
-   - Vault wSOL account lamports: 100 + 5 = 105 SOL
-   - Vault wSOL `amount` field: still 100 SOL (not yet synced)
+1. **sync_native()** (optional pre-step): Ensure token `amount` reflects any prior lamport changes
+   - Vault wSOL `amount` field: 100 SOL
 
-2. **sync_native()**: Updates token account state
-   - Vault wSOL `amount` field: now 105 SOL
-
-3. **Calculate shares**:
-   - `total_assets = 105 SOL` (live read)
-   - `total_shares = 100 shares`
-   - `offset = 1` (SOL has 9 decimals)
-   - `shares = 5 * (100 + 1) / (105 + 1) ≈ 4.76 shares`
-   - Wait, this seems wrong. Let me recalculate with proper formula:
-   - `shares = assets * (supply + offset) / (total + 1)`
-   - Before deposit: total_assets = 100, total_shares = 100
+2. **Calculate shares (pre-transfer totals)**:
+   - Before deposit: `total_assets = 100 SOL`, `total_shares = 100 shares`
+   - `decimals_offset = 0` → `offset = 10^0 = 1`
    - `shares = 5 * (100 + 1) / (100 + 1) = 5 shares`
+
+3. **system_program::transfer + sync_native()**: 5 SOL from user to vault_wsol_ata
+   - Vault wSOL `amount` field: now 105 SOL
 
 4. **Mint 5 shares to user**
 
@@ -336,4 +341,4 @@ User wSOL → spl_token::transfer_checked → vault_wsol_ata → mint_shares
 - [SVS-1](./SVS-1.md) — Base SPL token vault
 - [SVS-2](./SVS-2.md) — Stored balance model
 - [ARCHITECTURE.md](./ARCHITECTURE.md) — Cross-variant design
-- [specs-modules.md](./specs-modules.md) — Module integration
+- [MODULES.md](./MODULES.md) — Module integration

@@ -117,16 +117,16 @@ pub fn handler(ctx: Context<RedeemSol>, shares: u64, min_assets_out: u64) -> Res
         let vault_key = vault.key();
         let user_key = ctx.accounts.user.key();
 
-        module_hooks::check_deposit_access(remaining, &crate::ID, &vault_key, &user_key, &[])?;
+        module_hooks::check_deposit_access(remaining, ctx.program_id, &vault_key, &user_key, &[])?;
         module_hooks::check_share_lock(
             remaining,
-            &crate::ID,
+            ctx.program_id,
             &vault_key,
             &user_key,
             clock.unix_timestamp,
         )?;
 
-        let result = module_hooks::apply_exit_fee(remaining, &crate::ID, &vault_key, assets)?;
+        let result = module_hooks::apply_exit_fee(remaining, ctx.program_id, &vault_key, assets)?;
         result.net_assets
     };
 

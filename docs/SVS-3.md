@@ -410,7 +410,7 @@ Available admin instructions:
 - `initialize_lock_config`, `update_lock_config`
 - `initialize_access_config`, `update_access_config`
 
-See [specs-modules.md](specs-modules.md) for full specification.
+See [MODULES.md](MODULES.md) for full specification.
 
 ---
 

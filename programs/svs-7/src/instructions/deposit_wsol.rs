@@ -104,17 +104,17 @@ pub fn handler(ctx: Context<DepositWsol>, assets: u64, min_shares_out: u64) -> R
         let vault_key = vault.key();
         let user_key = ctx.accounts.user.key();
 
-        module_hooks::check_deposit_access(remaining, &crate::ID, &vault_key, &user_key, &[])?;
+        module_hooks::check_deposit_access(remaining, ctx.program_id, &vault_key, &user_key, &[])?;
         module_hooks::check_deposit_caps(
             remaining,
-            &crate::ID,
+            ctx.program_id,
             &vault_key,
             &user_key,
             total_assets,
             assets,
         )?;
 
-        let result = module_hooks::apply_entry_fee(remaining, &crate::ID, &vault_key, shares)?;
+        let result = module_hooks::apply_entry_fee(remaining, ctx.program_id, &vault_key, shares)?;
         result.net_shares
     };
 
