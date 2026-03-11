@@ -32,6 +32,8 @@ SVS uses a multi-layered testing strategy:
 
 ## Quick Start
 
+Shell snippets in this repo are written for `bash`. If you're using `zsh` and paste multi-line snippets that include `#` comment-only lines, you may see `zsh: command not found: #`. Either remove comment lines before pasting, or run `setopt interactivecomments`.
+
 ```bash
 # Run all integration tests (256 tests)
 anchor test
@@ -65,7 +67,7 @@ trident fuzz run fuzz_2
 If you want a single command that checks tool versions, installs JS deps, builds/tests all Anchor programs, and runs both SDK test suites:
 
 ```bash
-bash ./scripts/qa.sh
+(cd "$(git rev-parse --show-toplevel)" && bash ./scripts/qa.sh)
 ```
 
 ### Tooling setup notes (macOS)

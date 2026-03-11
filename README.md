@@ -51,6 +51,8 @@ Tokenized vault programs and TypeScript SDK for building yield-bearing vaults on
 
 ## Installation
 
+Shell snippets in this repo are written for `bash`. If you're using `zsh` and paste multi-line snippets that include `#` comment-only lines, you may see `zsh: command not found: #`. Either remove comment lines before pasting, or run `setopt interactivecomments`.
+
 ```bash
 # Core SDK (SVS-1/SVS-2)
 npm install @stbr/solana-vault
@@ -328,6 +330,18 @@ const [sharesMint] = PublicKey.findProgramAddressSync(
 **Audit Status:** Not audited. Use at your own risk.
 
 ## Testing
+
+### One-command repo QA
+
+Runs tool/version checks, installs JS deps, builds + tests all Anchor programs, and runs both SDK test suites:
+
+```bash
+(cd "$(git rev-parse --show-toplevel)" && bash ./scripts/qa.sh)
+```
+
+Notes:
+- Works from any subdirectory inside the repo.
+- `qa.sh` prepends common install locations to `PATH` for the duration of the run (including `$HOME/.local/share/solana/install/active_release/bin`, `$HOME/.cargo/bin`, and `$HOME/.avm/bin`).
 
 ```bash
 # Build all programs

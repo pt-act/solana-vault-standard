@@ -2,17 +2,32 @@
 
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+
+# If invoked via PATH (e.g. `qa.sh`), $0/BASH_SOURCE may not include a directory.
+# Resolve to an absolute path so we can reliably locate the repo root.
+if [ "${SCRIPT_PATH#*/}" = "${SCRIPT_PATH}" ] && [ "${SCRIPT_PATH#/}" = "${SCRIPT_PATH}" ]; then
+  SCRIPT_PATH="$(command -v "${SCRIPT_PATH}" || true)"
+fi
+
+if [ -z "${SCRIPT_PATH}" ]; then
+  echo "Unable to resolve qa.sh path. Run from the repo root with: bash ./scripts/qa.sh" >&2
+  exit 1
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${SCRIPT_PATH}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${REPO_ROOT}"
 
-# Ensure common install locations are available (needed for avm/anchor installed via cargo)
-export PATH="$HOME/.cargo/bin:$HOME/.avm/bin:$PATH"
+# Ensure common install locations are available (needed for solana/avm/anchor installed via installers)
+export PATH="$HOME/.local/share/solana/install/active_release/bin:$HOME/.cargo/bin:$HOME/.avm/bin:$PATH"
 hash -r || true
 
 LOG_FILE=${QA_LOG_FILE:-"qa-$(date -u +%Y%m%dT%H%M%SZ).log"}
 exec > >(tee "${LOG_FILE}") 2>&1
 
 echo "QA log: ${LOG_FILE}"
+echo "Repo root: ${REPO_ROOT}"
 echo "PATH=$PATH"
 echo "which solana: $(command -v solana || echo 'not found')"
 echo "which anchor: $(command -v anchor || echo 'not found')"

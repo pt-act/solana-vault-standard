@@ -20,26 +20,26 @@ scripts/
 
 ## Quick Start
 
+Set your RPC endpoint (avoid public rate limits) and optionally a custom wallet, then run the SVS-1 test suite:
+
 ```bash
-# Set your RPC endpoint (avoid public rate limits)
 export RPC_URL="https://devnet.helius-rpc.com/?api-key=YOUR_KEY"
-
-# Optional: custom wallet
 export ANCHOR_WALLET="/path/to/keypair.json"
-
-# Run all SVS-1 tests
 yarn test-svs1:all
 ```
 
 ## Repo-wide QA
 
+Runs tool/version checks, installs deps, builds + tests Anchor programs, and runs SDK workspace tests.
+
 ```bash
-# Runs tool/version checks, installs deps, builds + tests Anchor programs,
-# and runs SDK workspace tests.
-#
-# Note: `qa.sh` is intentionally runnable via `bash` (does not require +x).
-bash ./scripts/qa.sh
+(cd "$(git rev-parse --show-toplevel)" && bash ./scripts/qa.sh)
 ```
+
+Notes:
+- The command above works from any subdirectory inside the git repo.
+- `qa.sh` prepends common install locations to `PATH` for the duration of the run (including `$HOME/.local/share/solana/install/active_release/bin`, `$HOME/.cargo/bin`, and `$HOME/.avm/bin`).
+- If you use zsh and paste snippets that include `#` comment-only lines, you may see `zsh: command not found: #`. Either remove comment lines before pasting, or run `setopt interactivecomments`.
 
 ## Available Commands
 
