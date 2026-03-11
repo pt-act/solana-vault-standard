@@ -113,6 +113,19 @@ export function loadIdl(idlPath: string): unknown {
 }
 
 /**
+ * Return a copy of the given IDL with the `address` field set.
+ *
+ * Anchor >=0.30 expects `idl.address` to be present and uses it as the program id.
+ */
+export function withIdlAddress(idl: unknown, programId: PublicKey): unknown {
+  if (!idl || typeof idl !== "object") return idl;
+  return {
+    ...(idl as Record<string, unknown>),
+    address: programId.toBase58(),
+  };
+}
+
+/**
  * Get the CLI config file path.
  *
  * @returns Path to ~/.solana-vault/config.yaml

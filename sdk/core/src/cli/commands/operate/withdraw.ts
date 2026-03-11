@@ -7,7 +7,7 @@ import { createContext } from "../../middleware";
 import { getGlobalOptions } from "../../index";
 import { SolanaVault } from "../../../vault";
 import { SolanaSolVault } from "../../../sol-vault";
-import { findIdlPath, loadIdl, resolveVaultArg } from "../../utils";
+import { findIdlPath, loadIdl, resolveVaultArg, withIdlAddress } from "../../utils";
 
 export function registerWithdrawCommand(program: Command): void {
   program
@@ -66,8 +66,9 @@ export function registerWithdrawCommand(program: Command): void {
       const slippageBps = parseInt(opts.slippage);
 
       try {
-        const idl = loadIdl(idlPath);
-        const prog = new Program(idl as any, resolved.programId, provider);
+        const idl = withIdlAddress(loadIdl(idlPath), resolved.programId);
+        // Anchor 0.31.x Program ctor signature: (idl, provider, coder?, getCustomResolver?)
+        const prog = new Program(idl as any, provider);
 
         const vault =
           resolved.variant === "svs-7"

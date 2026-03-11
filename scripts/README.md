@@ -31,6 +31,16 @@ export ANCHOR_WALLET="/path/to/keypair.json"
 yarn test-svs1:all
 ```
 
+## Repo-wide QA
+
+```bash
+# Runs tool/version checks, installs deps, builds + tests Anchor programs,
+# and runs SDK workspace tests.
+#
+# Note: `qa.sh` is intentionally runnable via `bash` (does not require +x).
+bash ./scripts/qa.sh
+```
+
 ## Available Commands
 
 | Command | Description |

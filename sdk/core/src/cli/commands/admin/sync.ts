@@ -7,7 +7,7 @@ import { createContext } from "../../middleware";
 import { getGlobalOptions } from "../../index";
 import { ManagedVault } from "../../../managed-vault";
 import { SolanaSolVault } from "../../../sol-vault";
-import { findIdlPath, loadIdl, resolveVaultArg, checkAuthority } from "../../utils";
+import { findIdlPath, loadIdl, resolveVaultArg, checkAuthority, withIdlAddress } from "../../utils";
 
 export function registerSyncCommand(program: Command): void {
   program
@@ -48,8 +48,9 @@ export function registerSyncCommand(program: Command): void {
       }
 
       try {
-        const idl = loadIdl(idlPath);
-        const prog = new Program(idl as any, resolved.programId, provider);
+        const idl = withIdlAddress(loadIdl(idlPath), resolved.programId);
+        // Anchor 0.31.x Program ctor signature: (idl, provider, coder?, getCustomResolver?)
+        const prog = new Program(idl as any, provider);
 
         if (resolved.variant === "svs-7") {
           const vault = await SolanaSolVault.load(prog, resolved.address);

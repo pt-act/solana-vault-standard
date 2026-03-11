@@ -60,6 +60,33 @@ trident fuzz run fuzz_3  # SVS-3/4 CT state machine
 trident fuzz run fuzz_2
 ```
 
+### One-command repo QA
+
+If you want a single command that checks tool versions, installs JS deps, builds/tests all Anchor programs, and runs both SDK test suites:
+
+```bash
+bash ./scripts/qa.sh
+```
+
+### Tooling setup notes (macOS)
+
+If `anchor` is missing:
+
+```bash
+cargo install --git https://github.com/coral-xyz/anchor avm --locked
+avm install 0.31.1
+avm use 0.31.1
+anchor --version
+```
+
+If `solana` is missing, install via Anza:
+
+```bash
+sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+solana --version
+```
+
 ## Test Categories
 
 ### Integration Tests (Anchor)
