@@ -1,15 +1,22 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "${REPO_ROOT}"
 
-LOG_FILE=${QA_LOG_FILE:-"qa-$(date -u +%Y%m%dT%H%M%SZ).log"}
+# Ensure common install locations are available (needed for avm/anchor installed via cargo)
+export PATH="$HOME/.cargo/bin:$HOME/.avm/bin:$PATH"
+hash -r || true
 
+LOG_FILE=${QA_LOG_FILE:-"qa-$(date -u +%Y%m%dT%H%M%SZ).log"}
 exec > >(tee "${LOG_FILE}") 2>&1
 
 echo "QA log: ${LOG_FILE}"
+echo "PATH=$PATH"
+echo "which solana: $(command -v solana || echo 'not found')"
+echo "which anchor: $(command -v anchor || echo 'not found')"
+echo "which avm:    $(command -v avm || echo 'not found')"
 
 echo ""
 echo "== Disk usage =="
@@ -47,15 +54,28 @@ fi
 
 echo ""
 echo "== Anchor CLI =="
-if command -v anchor >/dev/null 2>&1; then
-  anchor --version
-else
+if ! command -v anchor >/dev/null 2>&1; then
   echo "anchor CLI not found; installing via AVM"
-  export PATH="$HOME/.cargo/bin:$PATH"
   cargo install --git https://github.com/coral-xyz/anchor avm --locked
+  export PATH="$HOME/.cargo/bin:$HOME/.avm/bin:$PATH"
+  hash -r || true
   avm install 0.31.1
   avm use 0.31.1
-  anchor --version
+fi
+
+hash -r || true
+which anchor || true
+anchor --version
+
+echo ""
+echo "== Anchor/Solana toolchain cache sanity =="
+# The Solana SBF toolchain downloads into ~/.cache/solana/ and can become corrupted
+# after interrupted installs (e.g., ENOSPC). The most common symptom is:
+#   error: not a directory: '~/.cache/solana/v1.53/platform-tools/rust/bin'
+# Clearing that cache is safe; it will be re-downloaded.
+if [ -d "$HOME/.cache/solana/v1.53" ] && [ ! -d "$HOME/.cache/solana/v1.53/platform-tools/rust/bin" ]; then
+  echo "Detected corrupted Solana platform-tools cache at ~/.cache/solana/v1.53; removing..."
+  rm -rf "$HOME/.cache/solana/v1.53"
 fi
 
 echo ""
