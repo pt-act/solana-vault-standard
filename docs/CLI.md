@@ -99,10 +99,19 @@ solana-vault deposit my-vault --amount 1000000 --slippage 100
 solana-vault deposit my-vault --amount 1000000 --dry-run
 ```
 
+**SVS-7 (Native SOL vault):** deposits are native SOL by default. Use `--wsol` to deposit from your existing wSOL ATA.
+
 | Option | Description |
 |--------|-------------|
-| `-a, --amount <amount>` | Amount of assets to deposit (required) |
+| `-a, --amount <amount>` | Amount of assets to deposit (required). For SVS-7 `--sol`, this is lamports. |
 | `-s, --slippage <bps>` | Max slippage in basis points (default: 50) |
+| `--min-shares <amount>` | Minimum shares to receive (overrides slippage) |
+| `--sol` | SVS-7 only: deposit native SOL (lamports) (default) |
+| `--wsol` | SVS-7 only: deposit existing wSOL from your ATA |
+| `--program-id <pubkey>` | Program ID (required when using raw vault address) |
+| `--asset-mint <pubkey>` | Asset mint (required when using raw vault address; ignored for SVS-7) |
+| `--variant <variant>` | SVS variant when using raw vault address (default: svs-1) |
+| `--vault-id <number>` | Vault ID (default: 1) |
 
 #### `mint <vault>`
 Mint exact shares by depositing assets.
@@ -123,10 +132,20 @@ Withdraw exact assets from a vault.
 solana-vault withdraw my-vault --amount 500000
 ```
 
+**SVS-7 (Native SOL vault):** withdrawals return native SOL by default. Use `--wsol` to receive wSOL into your ATA.
+
 | Option | Description |
 |--------|-------------|
-| `-a, --amount <amount>` | Amount of assets to withdraw (required) |
-| `-s, --slippage <bps>` | Max slippage in basis points |
+| `-a, --amount <amount>` | Amount of assets to withdraw (required). For SVS-7 `--sol`, this is lamports. |
+| `-s, --slippage <bps>` | Max slippage in basis points (default: 50) |
+| `--max-shares <amount>` | Maximum shares to burn (overrides slippage) |
+| `--sol` | SVS-7 only: receive native SOL (lamports) (default) |
+| `--wsol` | SVS-7 only: receive wSOL into your ATA |
+| `--receiver <pubkey>` | SVS-7 only (--sol): receiver of withdrawn SOL (defaults to your wallet) |
+| `--program-id <pubkey>` | Program ID (required when using raw vault address) |
+| `--asset-mint <pubkey>` | Asset mint (required when using raw vault address; ignored for SVS-7) |
+| `--variant <variant>` | SVS variant when using raw vault address (default: svs-1) |
+| `--vault-id <number>` | Vault ID (default: 1) |
 
 #### `redeem <vault>`
 Redeem shares for assets.
@@ -161,7 +180,7 @@ solana-vault unpause my-vault
 ```
 
 #### `sync <vault>`
-Sync stored balance with actual balance (SVS-2/SVS-4 only).
+Sync stored balance with actual balance (SVS-2/SVS-4/SVS-7 stored-balance vaults).
 
 ```bash
 solana-vault sync my-vault
@@ -644,6 +663,7 @@ Add a vault alias.
 ```bash
 solana-vault config add-vault my-vault <ADDRESS> --variant svs-1
 solana-vault config add-vault my-vault <ADDRESS> --variant svs-2 --asset-mint <MINT>
+solana-vault config add-vault sol-vault <ADDRESS> --variant svs-7 --program-id <PROGRAM_ID>
 ```
 
 #### `config remove-vault <alias>`
@@ -651,6 +671,17 @@ Remove a vault alias.
 
 ```bash
 solana-vault config remove-vault my-vault
+```
+
+#### `config update-vault <alias>`
+Update an existing vault alias.
+
+```bash
+# Add missing metadata
+solana-vault config update-vault my-vault --asset-mint <MINT>
+
+# Update SVS-7 program ID
+solana-vault config update-vault sol-vault --program-id <PROGRAM_ID>
 ```
 
 #### `config set <key> <value>`

@@ -198,7 +198,7 @@ pub struct Checkpoint {
 
 **Implementation:** Build with `--features modules` to enable. Module config PDAs passed via `remaining_accounts`.
 
-SVS-5 supports all modules defined in `specs-modules.md`:
+SVS-5 supports all modules defined in [MODULES.md](./MODULES.md):
 
 - **svs-fees:** Applied on deposit/redeem after share computation. Management fees accrue on `effective_total_assets(now)`.
 - **svs-caps:** Checked against `effective_total_assets(now)` + deposit amount.
@@ -452,4 +452,4 @@ pub fn checkpoint(ctx: Context<Checkpoint>) -> Result<()> {
 - [SVS-2](./SVS-2.md) — Stored balance with sync
 - [SVS-6](./specs-SVS06.md) — Streaming + Confidential variant
 - [ARCHITECTURE.md](./ARCHITECTURE.md) — Cross-variant design
-- [specs-modules.md](./specs-modules.md) — Module integration
+- [MODULES.md](./MODULES.md) — Module integration

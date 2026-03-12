@@ -10,16 +10,17 @@ Tokenized vault programs and TypeScript SDK for building yield-bearing vaults on
 | **SVS-2** | Public Vault (Stored) | Stored balance | None | Requires sync() | ✅ Devnet |
 | **SVS-3** | Private Vault (Live) | Live balance | Encrypted | No sync needed | ✅ Devnet |
 | **SVS-4** | Private Vault (Stored) | Stored balance | Encrypted | Requires sync() | ✅ Devnet |
+| **SVS-7** | Native SOL Vault | Live or Stored | None | Stored requires sync() | ⚠️ Localnet / placeholder devnet |
 
 ### Balance Model Comparison
 
-**Live Balance (SVS-1, SVS-3):**
+**Live Balance (SVS-1, SVS-3, SVS-7 live):**
 - Uses `asset_vault.amount` directly for all calculations
 - External donations/yield immediately reflected in share price
 - No sync timing attack vulnerability
 - No sync() function needed
 
-**Stored Balance (SVS-2, SVS-4):**
+**Stored Balance (SVS-2, SVS-4, SVS-7 stored):**
 - Uses `vault.total_assets` stored in account
 - Requires `sync()` call to recognize external donations
 - Authority controls when yield is recognized
@@ -46,8 +47,11 @@ Tokenized vault programs and TypeScript SDK for building yield-bearing vaults on
 | SVS-2 | `3UrYrxh1HmVgq7WPygZ5x1gNEaWFwqTMs7geNqMnsrtD` | Same as devnet |
 | SVS-3 | `EcpnYtaCBrZ4p4uq7dDr55D3fL9nsxbCNqpyUREGpPkh` | Same as devnet |
 | SVS-4 | `2WP7LXWqrp1W4CwEJuVt2SxWPNY2n6AYmijh6Z4EeidY` | Same as devnet |
+| SVS-7 | `Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS` (placeholder) | Same as devnet |
 
 ## Installation
+
+Shell snippets in this repo are written for `bash`. If you're using `zsh` and paste multi-line snippets that include `#` comment-only lines, you may see `zsh: command not found: #`. Either remove comment lines before pasting, or run `setopt interactivecomments`.
 
 ```bash
 # Core SDK (SVS-1/SVS-2)
@@ -88,7 +92,7 @@ await vault.redeem(user, {
   minAssetsOut: expectedAssets.mul(new BN(95)).div(new BN(100)),
 });
 
-// SVS-2 only: sync stored balance
+// Stored-balance variants: sync stored balance (e.g., SVS-2 / SVS-4 / SVS-7 stored)
 await managed.sync(authority);
 ```
 
@@ -158,7 +162,7 @@ solana-vault dashboard my-vault               # Live monitoring
 
 # Admin (authority only)
 solana-vault pause my-vault                   # Emergency pause
-solana-vault sync my-vault                    # Sync balance (SVS-2/4)
+solana-vault sync my-vault                    # Sync balance (SVS-2/4/7 stored)
 ```
 
 **Global flags:** `--dry-run`, `--yes`, `--output json`, `--keypair <path>`, `--url <rpc>`
@@ -308,7 +312,7 @@ const [sharesMint] = PublicKey.findProgramAddressSync(
 | `VaultInitialized` | New vault created |
 | `Deposit` | Assets deposited |
 | `Withdraw` | Assets withdrawn |
-| `VaultSynced` | Total assets synced (SVS-2, SVS-4 only) |
+| `VaultSynced` | Total assets synced (SVS-2, SVS-4, SVS-7 stored) |
 | `VaultStatusChanged` | Pause/unpause |
 | `AuthorityTransferred` | Authority changed |
 
@@ -321,11 +325,23 @@ const [sharesMint] = PublicKey.findProgramAddressSync(
 - Emergency pause mechanism
 - Checked arithmetic throughout
 - PDA bumps stored (not recalculated)
-- SVS-1/SVS-3 use live balance (no sync timing attack)
+- SVS-1/SVS-3/SVS-7 live use live balance (no sync timing attack)
 
 **Audit Status:** Not audited. Use at your own risk.
 
 ## Testing
+
+### One-command repo QA
+
+Runs tool/version checks, installs JS deps, builds + tests all Anchor programs, and runs both SDK test suites:
+
+```bash
+(cd "$(git rev-parse --show-toplevel)" && bash ./scripts/qa.sh)
+```
+
+Notes:
+- Works from any subdirectory inside the repo.
+- `qa.sh` prepends common install locations to `PATH` for the duration of the run (including `$HOME/.local/share/solana/install/active_release/bin`, `$HOME/.cargo/bin`, and `$HOME/.avm/bin`).
 
 ```bash
 # Build all programs
@@ -361,7 +377,8 @@ solana-vault-standard/
 │   ├── svs-1/                    # Public vault, live balance
 │   ├── svs-2/                    # Public vault, stored balance
 │   ├── svs-3/                    # Private vault, live balance (beta)
-│   └── svs-4/                    # Private vault, stored balance (beta)
+│   ├── svs-4/                    # Private vault, stored balance (beta)
+│   └── svs-7/                    # Native SOL vault (wraps internally)
 ├── modules/
 │   ├── svs-math/                 # Shared math (mul_div, rounding, conversion)
 │   ├── svs-fees/                 # Entry/exit fee calculation

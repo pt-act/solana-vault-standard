@@ -317,7 +317,7 @@ SVS-4 supports module configuration via admin instructions. Build with `anchor b
 
 **Note:** Same as SVS-3 — module admin instructions are available, handler hook integration pending due to confidential transfer complexity.
 
-See [SVS-3.md#module-integration](SVS-3.md#module-integration) for details and [specs-modules.md](specs-modules.md) for full specification.
+See [SVS-3.md#module-integration](SVS-3.md#module-integration) for details and [MODULES.md](MODULES.md) for full specification.
 
 ---
 

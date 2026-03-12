@@ -32,6 +32,8 @@ SVS uses a multi-layered testing strategy:
 
 ## Quick Start
 
+Shell snippets in this repo are written for `bash`. If you're using `zsh` and paste multi-line snippets that include `#` comment-only lines, you may see `zsh: command not found: #`. Either remove comment lines before pasting, or run `setopt interactivecomments`.
+
 ```bash
 # Run all integration tests (256 tests)
 anchor test
@@ -58,6 +60,33 @@ trident fuzz run fuzz_3  # SVS-3/4 CT state machine
 
 # Run fuzz tests (actual program calls — requires anchor build -p svs_1)
 trident fuzz run fuzz_2
+```
+
+### One-command repo QA
+
+If you want a single command that checks tool versions, installs JS deps, builds/tests all Anchor programs, and runs both SDK test suites:
+
+```bash
+(cd "$(git rev-parse --show-toplevel)" && bash ./scripts/qa.sh)
+```
+
+### Tooling setup notes (macOS)
+
+If `anchor` is missing:
+
+```bash
+cargo install --git https://github.com/coral-xyz/anchor avm --locked
+avm install 0.31.1
+avm use 0.31.1
+anchor --version
+```
+
+If `solana` is missing, install via Anza:
+
+```bash
+sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+solana --version
 ```
 
 ## Test Categories

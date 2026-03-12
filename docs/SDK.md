@@ -586,7 +586,10 @@ function useVault(assetMint: PublicKey, vaultId: number) {
     if (!wallet) return;
 
     const provider = new AnchorProvider(connection, wallet, {});
-    const program = new Program(IDL, PROGRAM_ID, provider);
+    const program = new Program(
+      { ...IDL, address: PROGRAM_ID.toBase58() } as any,
+      provider,
+    );
 
     SolanaVault.load(program, assetMint, vaultId)
       .then(setVault)

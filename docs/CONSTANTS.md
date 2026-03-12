@@ -12,7 +12,7 @@ From `programs/svs-{N}/src/constants.rs`:
 
 | Constant | Value | Purpose |
 |----------|-------|---------|
-| `VAULT_SEED` | `b"vault"` | Vault PDA derivation |
+| `VAULT_SEED` | `b"vault"` | Vault PDA derivation (SVS-1/2/3/4) |
 | `SHARES_MINT_SEED` | `b"shares"` | Shares mint PDA derivation |
 
 ```rust
@@ -20,13 +20,18 @@ pub const VAULT_SEED: &[u8] = b"vault";
 pub const SHARES_MINT_SEED: &[u8] = b"shares";
 ```
 
+**SVS-7 note:** SVS-7 uses `SOL_VAULT_SEED = b"sol_vault"` for the vault PDA and omits `asset_mint` from the vault PDA seeds because the asset is fixed to the canonical wSOL/native mint.
+
 ### PDA Derivation
 
 ```rust
-// Vault PDA
+// SVS-1/2/3/4 Vault PDA
 seeds = [VAULT_SEED, asset_mint.key().as_ref(), &vault_id.to_le_bytes()]
 
-// Shares Mint PDA
+// SVS-7 Vault PDA
+seeds = [SOL_VAULT_SEED, &vault_id.to_le_bytes()]
+
+// Shares Mint PDA (all variants)
 seeds = [SHARES_MINT_SEED, vault.key().as_ref()]
 ```
 
@@ -207,8 +212,13 @@ pub const PRECISION: u128 = 1_000_000_000_000_000_000;  // 10^18
 
 | Constant | Value | Purpose |
 |----------|-------|---------|
-| `WSOL_MINT` | `So11...1112` | Wrapped SOL mint address |
-| `RENT_EXEMPT_MINIMUM` | ~`2039280` | Rent-exempt minimum for token account |
+| `SOL_VAULT_SEED` | `b"sol_vault"` | Vault PDA seed (SVS-7 only) |
+| `TEMP_WSOL_SEED` | `b"temp_wsol"` | Temporary wSOL account seed used for SOL unwrapping |
+| `WSOL_MINT` | `So11111111111111111111111111111111111111112` | Canonical wrapped SOL / native mint |
+| `SHARES_DECIMALS` | `9` | Fixed decimals for share tokens |
+| `MIN_DEPOSIT_AMOUNT` | `1000` | Minimum deposit amount in lamports (anti-dust) |
+
+**Rent note:** Rent-exempt lamports depend on cluster rent. For an SPL Token account (165 bytes), compute it via `Rent::minimum_balance(spl_token::state::Account::LEN)` (Rust) or `connection.getMinimumBalanceForRentExemption(165)` (TypeScript).
 
 ### SVS-8 (Multi-Asset)
 

@@ -32,6 +32,7 @@
  */
 
 export * from "./vault";
+export * from "./sol-vault";
 export * from "./managed-vault";
 export * from "./pda";
 export * from "./math";

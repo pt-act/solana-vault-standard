@@ -581,7 +581,7 @@ Module hooks are called in deposit/mint/withdraw/redeem handlers:
 
 Module config PDAs are passed via `remaining_accounts`. If not provided, checks are skipped (pure ERC-4626 behavior).
 
-See [specs-modules.md](specs-modules.md) for full specification.
+See [MODULES.md](MODULES.md) for full specification.
 
 ---
 

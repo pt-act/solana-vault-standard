@@ -682,5 +682,5 @@ A full FIDC product would combine SVS-11 (async + oracle + KYC) with SVS-12 (tra
 - [SVS-1](./SVS-1.md) — Base vault (single asset, single share class)
 - [SVS-10](./specs-SVS10.md) — Async request/fulfill pattern
 - [SVS-11](./specs-SVS11.md) — Credit markets (KYC + oracle + async)
-- [specs-modules.md](./specs-modules.md) — Module system for fees, caps, locks
+- [MODULES.md](./MODULES.md) — Module system for fees, caps, locks
 - [ARCHITECTURE.md](./ARCHITECTURE.md) — Cross-variant design patterns

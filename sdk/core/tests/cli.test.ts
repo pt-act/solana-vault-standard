@@ -282,6 +282,18 @@ describe("CLI Module", () => {
       );
     });
 
+    it("lists (none configured) when no vault aliases exist", () => {
+      const emptyConfig: CliConfig = {
+        defaults: testConfig.defaults,
+        profiles: {},
+        vaults: {},
+      };
+
+      expect(() => resolveVault("unknown-vault", emptyConfig)).to.throw(
+        "(none configured)",
+      );
+    });
+
     it("isValidPublicKey returns true for valid pubkey", () => {
       expect(isValidPublicKey("7xKYqBvpmmN4dZFrAPCfPKBNqPhsRUFwsHPDKJeJpump"))
         .to.be.true;
@@ -679,6 +691,16 @@ describe("CLI Module", () => {
       const optionFlags = depositCmd!.options.map((o) => o.long);
       expect(optionFlags).to.include("--amount");
       expect(optionFlags).to.include("--slippage");
+    });
+
+    it("config command includes update-vault", () => {
+      const program = createCli();
+      const configCmd = program.commands.find((c) => c.name() === "config");
+
+      expect(configCmd).to.exist;
+
+      const subcommands = configCmd!.commands.map((c) => c.name());
+      expect(subcommands).to.include("update-vault");
     });
 
     it("pause command has vault argument", () => {

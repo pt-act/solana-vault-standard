@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- SVS-7 native SOL vault program (`programs/svs-7`) with internal SOL↔wSOL wrapping and Token-2022 shares
+- SDK: `SolanaSolVault` class for SVS-7
+- CLI: SVS-7 support for deposit/withdraw (SOL vs wSOL) and sync for stored-balance SVS-7 vaults
+- Anchor workspace integration + on-chain tests for SVS-7 (`tests/svs-7.ts`)
+
 ## [0.3.0] - 2026-03-06
 
 ### Added

@@ -6,23 +6,6 @@
  *
  * Aliases provide human-readable names for vaults, while direct addresses
  * are looked up in the config for associated metadata.
- *
- * @example
- * ```ts
- * import { resolveVault, addVaultAlias } from "./vault-aliases";
- *
- * // Resolve by alias
- * const vault = resolveVault("my-vault", config, "devnet");
- *
- * // Resolve by address
- * const vault = resolveVault("7xKY...", config, "devnet");
- *
- * // Add new alias
- * const updated = addVaultAlias(config, "new-vault", {
- *   address: "7xKY...",
- *   variant: "svs-1",
- * });
- * ```
  */
 
 import { PublicKey } from "@solana/web3.js";
@@ -31,7 +14,6 @@ import {
   CliConfig,
   VaultAlias,
   ResolvedVault,
-  SvsVariant,
   SVS_PROGRAMS,
   Cluster,
 } from "../types";
@@ -55,8 +37,11 @@ export function getVaultAlias(
 export function resolveVault(
   vaultArg: string,
   config: CliConfig,
-  cluster: Cluster = "devnet",
+  cluster?: Cluster,
 ): ResolvedVault {
+  const resolvedCluster = cluster ?? config.defaults.cluster;
+
+  // Raw public key: attempt to match an existing alias by address.
   if (isValidPublicKey(vaultArg)) {
     const alias = Object.entries(config.vaults).find(
       ([_, v]) => v.address === vaultArg,
@@ -64,7 +49,7 @@ export function resolveVault(
 
     if (alias) {
       const [name, vaultConfig] = alias;
-      return resolveFromAlias(vaultConfig, name, cluster);
+      return resolveFromAlias(vaultConfig, name, resolvedCluster);
     }
 
     throw new Error(
@@ -73,17 +58,20 @@ export function resolveVault(
     );
   }
 
+  // Alias lookup
   const vaultConfig = config.vaults[vaultArg];
   if (!vaultConfig) {
+    const available =
+      Object.keys(config.vaults)
+        .map((k) => `  - ${k}`)
+        .join("\n") || "  (none configured)";
+
     throw new Error(
-      `Vault alias "${vaultArg}" not found. Available vaults:\n` +
-        Object.keys(config.vaults)
-          .map((k) => `  - ${k}`)
-          .join("\n") || "  (none configured)",
+      `Vault alias "${vaultArg}" not found. Available vaults:\n` + available,
     );
   }
 
-  return resolveFromAlias(vaultConfig, vaultArg, cluster);
+  return resolveFromAlias(vaultConfig, vaultArg, resolvedCluster);
 }
 
 function resolveFromAlias(
@@ -91,6 +79,15 @@ function resolveFromAlias(
   alias: string,
   cluster: Cluster,
 ): ResolvedVault {
+  // SVS-7 is not deployed by default; require explicit program id to avoid
+  // using placeholder program ids.
+  if (vaultConfig.variant === "svs-7" && !vaultConfig.programId) {
+    throw new Error(
+      "SVS-7 vaults require an explicit programId in config. Add/update with:\n" +
+        `  solana-vault config add-vault ${alias} <VAULT_ADDRESS> --variant svs-7 --program-id <PROGRAM_ID>`,
+    );
+  }
+
   const programAddresses = SVS_PROGRAMS[vaultConfig.variant];
   const programAddress =
     vaultConfig.programId ||
